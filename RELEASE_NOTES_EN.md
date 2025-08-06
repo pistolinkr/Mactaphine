@@ -106,6 +106,6 @@ Thank you to everyone using this project. Your feedback is the driving force beh
 **Star ⭐** this repository to support development!
 
 ---
-**Development Team**: Mactaphine  
+**Development Team**: Pistolinkr 
 **License**: MIT  
-**Support**: GitHub Issues 
+**Support**: G.gear Service Delta Team

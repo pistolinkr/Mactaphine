@@ -84,89 +84,19 @@ struct ContentView: View {
         .frame(minWidth: 1000, minHeight: 700)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
-            dataScanner.scanForCleanupItems()
+            if dataScanner.settings.autoScanOnLaunch {
+                dataScanner.scanForCleanupItems()
+            }
         }
         .sheet(isPresented: $showingCleanupConfirmation) {
             cleanupConfirmationSheet
         }
-    }
-    
-    private var enhancedBottomActionView: some View {
-        HStack(spacing: 16) {
-            // Selection info
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.accentColor)
-                
-                if selectedItems.isEmpty {
-                    Text("선택된 항목 없음")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(selectedItems.count)개 항목 선택됨")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        Text(dataScanner.formatBytes(dataScanner.selectedSize))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            // Quick stats
-            if !dataScanner.isScanning && !dataScanner.cleanupItems.isEmpty {
-                HStack(spacing: 16) {
-                    VStack(alignment: .center, spacing: 2) {
-                        Text("\(dataScanner.cleanupItems.count)")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                        Text("총 항목")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    VStack(alignment: .center, spacing: 2) {
-                        Text(dataScanner.formatBytes(dataScanner.totalSize))
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.blue)
-                        Text("절약 가능")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            // Action buttons
-            HStack(spacing: 12) {
-                if !selectedItems.isEmpty {
-                    Button("선택 해제") {
-                        for category in CleanupCategory.allCases {
-                            dataScanner.deselectAll(in: category)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Button("정리 시작") {
-                        showingCleanupConfirmation = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .foregroundColor(.white)
-                    .tint(.red)
-                    .disabled(selectedItems.isEmpty)
-                }
-            }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(dataScanner: dataScanner)
         }
-        .padding()
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.7))
     }
     
+    // MARK: - Header View
     private var headerView: some View {
         VStack(spacing: 12) {
             HStack {
@@ -191,6 +121,17 @@ struct ContentView: View {
                 Spacer()
                 
                 HStack(spacing: 12) {
+                    // Settings Button
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gearshape.2")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("설정")
+                    
                     if dataScanner.isScanning {
                         HStack(spacing: 8) {
                             ProgressView()
@@ -217,7 +158,7 @@ struct ContentView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
                         
-                        TextField("파일 검색...", text: $dataScanner.searchText)
+                        TextField("파일 검색...", text: $searchText)
                             .textFieldStyle(.plain)
                     }
                     .padding(.horizontal, 12)
@@ -226,7 +167,7 @@ struct ContentView: View {
                     .cornerRadius(8)
                     .frame(maxWidth: 300)
                     
-                    Toggle("안전한 항목만", isOn: $dataScanner.showOnlySafe)
+                    Toggle("안전한 항목만", isOn: $showOnlySafe)
                         .toggleStyle(.checkbox)
                     
                     Spacer()
@@ -254,133 +195,153 @@ struct ContentView: View {
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
     
+    // MARK: - Sidebar View
     private var sidebarView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("카테고리")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top)
-            
+        VStack(spacing: 0) {
+            // Category List
             ScrollView {
-                LazyVStack(spacing: 4) {
-                    ForEach(CleanupCategory.allCases, id: \.self) { category in
-                        let categoryItems = dataScanner.cleanupItems.filter { $0.category == category }
-                        let categorySize = categoryItems.reduce(0) { $0 + $1.size }
-                        
-                        if !categoryItems.isEmpty {
-                            CategoryRowView(
-                                category: category,
-                                itemCount: categoryItems.count,
-                                totalSize: categorySize,
-                                isSelected: selectedCategory == category,
-                                dataScanner: dataScanner
-                            ) {
-                                selectedCategory = selectedCategory == category ? nil : category
-                            }
+                LazyVStack(spacing: 2) {
+                    ForEach(CleanupCategory.allCases) { category in
+                        CategoryRowView(
+                            category: category,
+                            isSelected: selectedCategory == category,
+                            itemCount: dataScanner.itemsByCategory[category]?.count ?? 0,
+                            totalSize: dataScanner.itemsByCategory[category]?.reduce(0) { $0 + $1.size } ?? 0,
+                            formatBytes: dataScanner.formatBytes
+                        ) {
+                            selectedCategory = selectedCategory == category ? nil : category
                         }
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
             }
-            
-            Spacer()
         }
         .frame(width: 250)
         .background(Color(NSColor.controlBackgroundColor))
     }
     
+    // MARK: - Main Content View
     private var mainContentView: some View {
         VStack(spacing: 0) {
             if dataScanner.isScanning {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                    
-                    Text("시스템 데이터를 스캔하고 있습니다...")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                scanningView
             } else if dataScanner.cleanupItems.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.green)
-                    
-                    Text("정리할 데이터가 없습니다")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                    
-                    Text("시스템이 깨끗한 상태입니다!")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyStateView
             } else {
-                let itemsToShow = selectedCategory != nil 
-                    ? dataScanner.cleanupItems.filter { $0.category == selectedCategory }
-                    : dataScanner.cleanupItems
-                
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(itemsToShow.indices, id: \.self) { index in
-                            CleanupItemRowView(
-                                item: itemsToShow[index],
-                                dataScanner: dataScanner
-                            )
-                        }
-                    }
-                    .padding()
-                }
+                itemListView
             }
         }
     }
     
+    private var scanningView: some View {
+        VStack(spacing: 20) {
+            ProgressView(value: dataScanner.scanProgress)
+                .progressViewStyle(.linear)
+                .frame(width: 300)
+            
+            Text("시스템을 스캔하고 있습니다...")
+                .font(.headline)
+            
+            Text("\(Int(dataScanner.scanProgress * 100))% 완료")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.green)
+            
+            Text("정리할 항목이 없습니다")
+                .font(.title2)
+                .fontWeight(.medium)
+            
+            Text("시스템이 깨끗한 상태입니다!")
+                .font(.body)
+                .foregroundColor(.secondary)
+            
+            Button("다시 스캔") {
+                dataScanner.scanForCleanupItems()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var itemListView: some View {
+        VStack(spacing: 0) {
+            // List Header
+            HStack {
+                Text("\(filteredItems.count)개 항목")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Picker("정렬", selection: $sortOption) {
+                    ForEach(SortOption.allCases, id: \.self) { option in
+                        Text(option.rawValue).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            Divider()
+            
+            // Items List
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(filteredItems) { item in
+                        ItemRowView(
+                            item: item,
+                            onToggle: {
+                                dataScanner.toggleSelection(for: item)
+                            }
+                        )
+                        .onTapGesture {
+                            selectedItem = item
+                            showingDetailView = true
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+        }
+    }
+    
+    // MARK: - Bottom Action View
     private var bottomActionView: some View {
-        HStack {
-            if cleanupManager.isCleaningUp {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        ProgressView(value: cleanupManager.cleanupProgress)
-                            .frame(width: 200)
-                        
-                        Text("\(Int(cleanupManager.cleanupProgress * 100))%")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Text(cleanupManager.cleanupStatus)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("선택된 항목: \(selectedItems.count)개")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    
-                    if dataScanner.selectedSize > 0 {
-                        Text("정리 예정 크기: \(dataScanner.formatBytes(dataScanner.selectedSize))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+        HStack(spacing: 16) {
+            // Selection info
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.accentColor)
+                
+                Text("\(selectedItems.count)개 선택됨")
+                    .font(.headline)
+                
+                Text("• \(dataScanner.formatBytes(dataScanner.selectedSize))")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            if !cleanupManager.isCleaningUp {
-                Button("모두 선택") {
-                    selectAllItems(true)
+            // Action buttons
+            HStack(spacing: 12) {
+                Button("선택 해제") {
+                    for item in selectedItems {
+                        dataScanner.toggleSelection(for: item)
+                    }
                 }
-                .disabled(dataScanner.cleanupItems.isEmpty)
+                .buttonStyle(.bordered)
+                .disabled(selectedItems.isEmpty)
                 
-                Button("모두 해제") {
-                    selectAllItems(false)
-                }
-                .disabled(dataScanner.cleanupItems.isEmpty)
-                
-                Button("정리 시작") {
+                Button("선택 항목 정리") {
                     showingCleanupConfirmation = true
                 }
                 .buttonStyle(.borderedProminent)
@@ -388,8 +349,10 @@ struct ContentView: View {
             }
         }
         .padding()
+        .background(Color(NSColor.controlBackgroundColor))
     }
     
+    // MARK: - Cleanup Confirmation Sheet
     private var cleanupConfirmationSheet: some View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -398,105 +361,103 @@ struct ContentView: View {
             
             Text("정리 확인")
                 .font(.title)
-                .fontWeight(.semibold)
+                .fontWeight(.bold)
             
-            Text("선택된 \(selectedItems.count)개 항목을 정리하시겠습니까?")
+            Text("선택한 \(selectedItems.count)개 항목을 정리하시겠습니까?")
+                .font(.body)
+                .multilineTextAlignment(.center)
+            
+            Text("총 \(dataScanner.formatBytes(dataScanner.selectedSize))")
                 .font(.subheadline)
-            
-            Text("총 \(dataScanner.formatBytes(dataScanner.selectedSize))의 데이터가 삭제됩니다.")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.red)
-            
-            Text("이 작업은 되돌릴 수 없습니다.")
-                .font(.caption)
                 .foregroundColor(.secondary)
             
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
                 Button("취소") {
                     showingCleanupConfirmation = false
                 }
                 .buttonStyle(.bordered)
                 
-                Button("정리 시작") {
+                Button("정리") {
+                    cleanupManager.cleanup(items: selectedItems)
                     showingCleanupConfirmation = false
-                    cleanupManager.cleanup(items: dataScanner.cleanupItems)
+                    dataScanner.scanForCleanupItems()
                 }
                 .buttonStyle(.borderedProminent)
             }
         }
-        .padding(30)
+        .padding(40)
         .frame(width: 400)
-    }
-    
-    private func selectAllItems(_ selected: Bool) {
-        for index in dataScanner.cleanupItems.indices {
-            dataScanner.cleanupItems[index].isSelected = selected
-        }
     }
 }
 
+// MARK: - Category Row View
 struct CategoryRowView: View {
     let category: CleanupCategory
+    let isSelected: Bool
     let itemCount: Int
     let totalSize: Int64
-    let isSelected: Bool
-    let dataScanner: DataScanner
+    let formatBytes: (Int64) -> String
     let onTap: () -> Void
     
     var body: some View {
-        HStack {
-            Image(systemName: category.icon)
-                .foregroundColor(category.color)
-                .frame(width: 20)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(category.rawValue)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                Image(systemName: category.icon)
+                    .foregroundColor(category.color)
+                    .frame(width: 20)
                 
-                Text("\(itemCount)개 • \(dataScanner.formatBytes(totalSize))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(category.rawValue)
+                        .font(.body)
+                        .foregroundColor(.primary)
+                    
+                    if itemCount > 0 {
+                        Text("\(itemCount)개 • \(formatBytes(totalSize))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
             }
-            
-            Spacer()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+            .cornerRadius(8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.blue.opacity(0.2) : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
+        .buttonStyle(.plain)
     }
 }
 
-struct CleanupItemRowView: View {
+// MARK: - Item Row View
+struct ItemRowView: View {
     let item: CleanupItem
-    let dataScanner: DataScanner
+    let onToggle: () -> Void
     
     var body: some View {
-        HStack {
-            Button(action: {
-                if let index = dataScanner.cleanupItems.firstIndex(where: { $0.id == item.id }) {
-                    dataScanner.cleanupItems[index].isSelected.toggle()
-                }
-            }) {
+        HStack(spacing: 12) {
+            // Checkbox
+            Button(action: onToggle) {
                 Image(systemName: item.isSelected ? "checkmark.square.fill" : "square")
-                    .foregroundColor(item.isSelected ? .blue : .secondary)
+                    .foregroundColor(item.isSelected ? .accentColor : .secondary)
             }
             .buttonStyle(.plain)
             
-            Image(systemName: item.category.icon)
-                .foregroundColor(item.category.color)
+            // Risk Level Icon
+            Image(systemName: item.riskLevel.icon)
+                .foregroundColor(item.riskLevel.color)
                 .frame(width: 20)
             
+            // File Icon
+            Image(systemName: "doc")
+                .foregroundColor(.secondary)
+                .frame(width: 20)
+            
+            // File Info
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.body)
+                    .lineLimit(1)
                 
                 Text(item.path)
                     .font(.caption)
@@ -506,17 +467,155 @@ struct CleanupItemRowView: View {
             
             Spacer()
             
-            Text(dataScanner.formatBytes(item.size))
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
+            // Size and Date
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formatBytes(item.size))
+                    .font(.body)
+                    .fontWeight(.medium)
+                
+                Text(formatDate(item.lastModified))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(item.isSelected ? Color.blue.opacity(0.1) : Color.clear)
-        )
+        .background(Color.clear)
+        .cornerRadius(8)
+    }
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useGB, .useMB, .useKB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Settings View
+struct SettingsView: View {
+    @ObservedObject var dataScanner: DataScanner
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                // Language Settings
+                Section("언어 설정") {
+                    Picker("언어", selection: $dataScanner.settings.language) {
+                        ForEach(Language.allCases, id: \.self) { language in
+                            HStack {
+                                Text(language.flag)
+                                Text(language.displayName)
+                            }
+                            .tag(language)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: dataScanner.settings.language) {
+                        dataScanner.saveSettings()
+                    }
+                }
+                
+                // Scan Settings
+                Section("스캔 설정") {
+                    Toggle("앱 시작 시 자동 스캔", isOn: $dataScanner.settings.autoScanOnLaunch)
+                        .onChange(of: dataScanner.settings.autoScanOnLaunch) {
+                            dataScanner.saveSettings()
+                        }
+                    
+                    Toggle("숨김 파일 스캔", isOn: $dataScanner.settings.scanHiddenFiles)
+                        .onChange(of: dataScanner.settings.scanHiddenFiles) {
+                            dataScanner.saveSettings()
+                        }
+                    
+                    Toggle("시스템 파일 제외", isOn: $dataScanner.settings.excludeSystemFiles)
+                        .onChange(of: dataScanner.settings.excludeSystemFiles) {
+                            dataScanner.saveSettings()
+                        }
+                    
+                    HStack {
+                        Text("대용량 파일 기준")
+                        Spacer()
+                        TextField("크기 (MB)", value: Binding(
+                            get: { Int(dataScanner.settings.maxFileSize / 1_000_000) },
+                            set: { dataScanner.settings.maxFileSize = Int64($0) * 1_000_000 }
+                        ), format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 100)
+                        .onChange(of: dataScanner.settings.maxFileSize) {
+                            dataScanner.saveSettings()
+                        }
+                    }
+                }
+                
+                // Scan Categories
+                Section("스캔 카테고리") {
+                    ForEach(CleanupCategory.allCases, id: \.self) { category in
+                        Toggle(category.rawValue, isOn: Binding(
+                            get: { dataScanner.settings.scanCategories.contains(category) },
+                            set: { isOn in
+                                if isOn {
+                                    dataScanner.settings.scanCategories.insert(category)
+                                } else {
+                                    dataScanner.settings.scanCategories.remove(category)
+                                }
+                                dataScanner.saveSettings()
+                            }
+                        ))
+                    }
+                }
+                
+                // Theme Settings
+                Section("테마 설정") {
+                    Picker("테마", selection: $dataScanner.settings.theme) {
+                        ForEach(AppTheme.allCases, id: \.self) { theme in
+                            HStack {
+                                Image(systemName: theme.icon)
+                                Text(theme.displayName)
+                            }
+                            .tag(theme)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: dataScanner.settings.theme) {
+                        dataScanner.saveSettings()
+                    }
+                }
+                
+                // Confirmation Settings
+                Section("확인 설정") {
+                    Toggle("정리 전 확인 대화상자", isOn: $dataScanner.settings.showConfirmationDialog)
+                        .onChange(of: dataScanner.settings.showConfirmationDialog) {
+                            dataScanner.saveSettings()
+                        }
+                }
+                
+                // Reset Settings
+                Section {
+                    Button("설정 초기화") {
+                        dataScanner.resetSettings()
+                    }
+                    .foregroundColor(.red)
+                }
+            }
+            .navigationTitle("설정")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("완료") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .frame(width: 500, height: 600)
     }
 }
 

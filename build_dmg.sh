@@ -19,14 +19,68 @@ rm -f "${DMG_NAME}.dmg"
 
 # Xcode로 앱 빌드
 echo "📱 앱 빌드 중..."
-xcodebuild -project "${APP_NAME}/${APP_NAME}.xcodeproj" \
-           -scheme "$APP_NAME" \
-           -configuration Release \
-           -derivedDataPath "$BUILD_DIR" \
-           build
 
-# 빌드된 앱 찾기
-APP_PATH=$(find "$BUILD_DIR" -name "${APP_NAME}.app" -type d | head -1)
+# 모든 Swift 파일 수동 컴파일
+echo "🔧 Swift 파일 수동 컴파일..."
+SWIFT_FILES=(
+    "${APP_NAME}/${APP_NAME}/MacDataCleanerApp.swift"
+    "${APP_NAME}/${APP_NAME}/ContentView.swift"
+    "${APP_NAME}/${APP_NAME}/DataScanner.swift"
+    "${APP_NAME}/${APP_NAME}/CleanupManager.swift"
+)
+
+mkdir -p "$BUILD_DIR/manual"
+
+swiftc -target arm64-apple-macos14.0 \
+       -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
+       -emit-executable \
+       -o "$BUILD_DIR/manual/MacDataCleaner" \
+       "${SWIFT_FILES[@]}"
+
+if [ $? -eq 0 ]; then
+    echo "✅ 수동 컴파일 성공"
+    # 수동으로 앱 번들 생성
+    mkdir -p "$BUILD_DIR/manual/MacDataCleaner.app/Contents/MacOS"
+    mkdir -p "$BUILD_DIR/manual/MacDataCleaner.app/Contents/Resources"
+    
+    cp "$BUILD_DIR/manual/MacDataCleaner" "$BUILD_DIR/manual/MacDataCleaner.app/Contents/MacOS/"
+    
+    # Info.plist 생성
+    cat > "$BUILD_DIR/manual/MacDataCleaner.app/Contents/Info.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>MacDataCleaner</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.mactaphine.MacDataCleaner</string>
+    <key>CFBundleName</key>
+    <string>Mac 데이터 클리너</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+</dict>
+</plist>
+EOF
+    
+    APP_PATH="$BUILD_DIR/manual/MacDataCleaner.app"
+else
+    echo "❌ 수동 컴파일 실패, Xcode 빌드 시도..."
+    xcodebuild -project "${APP_NAME}/${APP_NAME}.xcodeproj" \
+               -scheme "$APP_NAME" \
+               -configuration Release \
+               -derivedDataPath "$BUILD_DIR" \
+               build
+    
+    # 빌드된 앱 찾기
+    APP_PATH=$(find "$BUILD_DIR" -name "${APP_NAME}.app" -type d | head -1)
+fi
 
 if [ ! -d "$APP_PATH" ]; then
     echo "❌ 앱 빌드 실패!"

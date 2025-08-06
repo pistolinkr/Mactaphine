@@ -120,24 +120,23 @@ class DataScanner: ObservableObject {
     private func scanUserCache() -> [CleanupItem] {
         var items: [CleanupItem] = []
         
-        if let homeDir = fileManager.urls(for: .homeDirectory, in: .userDomainMask).first {
-            let cachePath = homeDir.appendingPathComponent("Library/Caches").path
-            
-            do {
-                let cacheContents = try fileManager.contentsOfDirectory(atPath: cachePath)
-                for item in cacheContents {
-                    let itemPath = "\(cachePath)/\(item)"
-                    if let size = directorySize(at: itemPath) {
-                        items.append(CleanupItem(
-                            name: "사용자 캐시 - \(item)",
-                            path: itemPath,
-                            size: size,
-                            category: .userCache
-                        ))
-                    }
+        let homeDir = fileManager.homeDirectoryForCurrentUser
+        let cachePath = homeDir.appendingPathComponent("Library/Caches").path
+        
+        do {
+            let cacheContents = try fileManager.contentsOfDirectory(atPath: cachePath)
+            for item in cacheContents {
+                let itemPath = "\(cachePath)/\(item)"
+                if let size = directorySize(at: itemPath) {
+                    items.append(CleanupItem(
+                        name: "사용자 캐시 - \(item)",
+                        path: itemPath,
+                        size: size,
+                        category: .userCache
+                    ))
                 }
-            } catch {}
-        }
+            }
+        } catch {}
         
         return items
     }
@@ -200,24 +199,23 @@ class DataScanner: ObservableObject {
     private func scanApplicationCache() -> [CleanupItem] {
         var items: [CleanupItem] = []
         
-        if let homeDir = fileManager.urls(for: .homeDirectory, in: .userDomainMask).first {
-            let appSupportPath = homeDir.appendingPathComponent("Library/Application Support").path
-            
-            do {
-                let appContents = try fileManager.contentsOfDirectory(atPath: appSupportPath)
-                for app in appContents.prefix(10) { // 상위 10개만
-                    let appPath = "\(appSupportPath)/\(app)"
-                    if let size = directorySize(at: appPath), size > 100_000_000 { // 100MB 이상만
-                        items.append(CleanupItem(
-                            name: "앱 데이터 - \(app)",
-                            path: appPath,
-                            size: size,
-                            category: .applications
-                        ))
-                    }
+        let homeDir = fileManager.homeDirectoryForCurrentUser
+        let appSupportPath = homeDir.appendingPathComponent("Library/Application Support").path
+        
+        do {
+            let appContents = try fileManager.contentsOfDirectory(atPath: appSupportPath)
+            for app in appContents.prefix(10) { // 상위 10개만
+                let appPath = "\(appSupportPath)/\(app)"
+                if let size = directorySize(at: appPath), size > 100_000_000 { // 100MB 이상만
+                    items.append(CleanupItem(
+                        name: "앱 데이터 - \(app)",
+                        path: appPath,
+                        size: size,
+                        category: .applications
+                    ))
                 }
-            } catch {}
-        }
+            }
+        } catch {}
         
         return items
     }

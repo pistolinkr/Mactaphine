@@ -4,7 +4,7 @@ A dedicated Mac data cleaning application designed specifically for system data 
 
 시스템 데이터만을 위한 전용 맥 데이터 정리 애플리케이션입니다.
 
-[한국어](#한국어) | [English](#english) | [中文](#中文) | [日本語](#日本語)
+ | [English](#english)[한국어](#한국어) | [中文](#中文) | [日本語](#日本語)
 
 ---
 

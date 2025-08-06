@@ -263,7 +263,6 @@ struct ContentView: View {
                     cleanupManager.cleanup(items: dataScanner.cleanupItems)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlProminence(.increased)
             }
         }
         .padding(30)

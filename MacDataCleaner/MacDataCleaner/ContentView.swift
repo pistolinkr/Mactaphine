@@ -125,12 +125,20 @@ struct ContentView: View {
                     Button(action: {
                         showingSettings = true
                     }) {
-                        Image(systemName: "gearshape.2")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 6) {
+                            Image(systemName: "gearshape.2")
+                                .font(.title2)
+                            Text("설정")
+                                .font(.body)
+                        }
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
-                    .help("설정")
+                    .help("앱 설정 열기")
                     
                     if dataScanner.isScanning {
                         HStack(spacing: 8) {
@@ -508,7 +516,15 @@ struct SettingsView: View {
         NavigationView {
             Form {
                 // Language Settings
-                Section("언어 설정") {
+                Section {
+                    HStack {
+                        Image(systemName: "globe")
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        Text("언어 설정")
+                            .font(.headline)
+                    }
+                    
                     Picker("언어", selection: $dataScanner.settings.language) {
                         ForEach(Language.allCases, id: \.self) { language in
                             HStack {
@@ -522,10 +538,20 @@ struct SettingsView: View {
                     .onChange(of: dataScanner.settings.language) {
                         dataScanner.saveSettings()
                     }
+                } header: {
+                    Text("🌍 인터페이스")
                 }
                 
                 // Scan Settings
-                Section("스캔 설정") {
+                Section {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.green)
+                            .frame(width: 20)
+                        Text("스캔 설정")
+                            .font(.headline)
+                    }
+                    
                     Toggle("앱 시작 시 자동 스캔", isOn: $dataScanner.settings.autoScanOnLaunch)
                         .onChange(of: dataScanner.settings.autoScanOnLaunch) {
                             dataScanner.saveSettings()
@@ -554,10 +580,20 @@ struct SettingsView: View {
                             dataScanner.saveSettings()
                         }
                     }
+                } header: {
+                    Text("🔍 스캔 옵션")
                 }
                 
                 // Scan Categories
-                Section("스캔 카테고리") {
+                Section {
+                    HStack {
+                        Image(systemName: "folder")
+                            .foregroundColor(.orange)
+                            .frame(width: 20)
+                        Text("스캔 카테고리")
+                            .font(.headline)
+                    }
+                    
                     ForEach(CleanupCategory.allCases, id: \.self) { category in
                         Toggle(category.rawValue, isOn: Binding(
                             get: { dataScanner.settings.scanCategories.contains(category) },
@@ -571,10 +607,20 @@ struct SettingsView: View {
                             }
                         ))
                     }
+                } header: {
+                    Text("📁 검사 범위")
                 }
                 
                 // Theme Settings
-                Section("테마 설정") {
+                Section {
+                    HStack {
+                        Image(systemName: "paintbrush")
+                            .foregroundColor(.purple)
+                            .frame(width: 20)
+                        Text("테마 설정")
+                            .font(.headline)
+                    }
+                    
                     Picker("테마", selection: $dataScanner.settings.theme) {
                         ForEach(AppTheme.allCases, id: \.self) { theme in
                             HStack {
@@ -588,22 +634,41 @@ struct SettingsView: View {
                     .onChange(of: dataScanner.settings.theme) {
                         dataScanner.saveSettings()
                     }
+                } header: {
+                    Text("🎨 외관")
                 }
                 
                 // Confirmation Settings
-                Section("확인 설정") {
+                Section {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundColor(.red)
+                            .frame(width: 20)
+                        Text("확인 설정")
+                            .font(.headline)
+                    }
+                    
                     Toggle("정리 전 확인 대화상자", isOn: $dataScanner.settings.showConfirmationDialog)
                         .onChange(of: dataScanner.settings.showConfirmationDialog) {
                             dataScanner.saveSettings()
                         }
+                } header: {
+                    Text("⚠️ 안전성")
                 }
                 
                 // Reset Settings
                 Section {
-                    Button("설정 초기화") {
+                    Button(action: {
                         dataScanner.resetSettings()
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("설정 초기화")
+                        }
+                        .foregroundColor(.red)
                     }
-                    .foregroundColor(.red)
+                } header: {
+                    Text("🔄 관리")
                 }
             }
             .navigationTitle("설정")

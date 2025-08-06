@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 class CleanupManager: ObservableObject {
     @Published var isCleaningUp = false
@@ -101,11 +102,11 @@ class CleanupManager: ObservableObject {
                         if isDirectory.boolValue {
                             cleanDirectory(at: itemPath, preserveStructure: false)
                         } else {
-                            try fileManager.removeItem(atPath: itemPath)
+                            moveToTrash(at: itemPath)
                         }
                     }
                 } else {
-                    try fileManager.removeItem(atPath: itemPath)
+                    moveToTrash(at: itemPath)
                 }
             }
         } catch {
@@ -124,7 +125,7 @@ class CleanupManager: ObservableObject {
                 if let modificationDate = attributes[.modificationDate] as? Date {
                     let daysSinceModification = Date().timeIntervalSince(modificationDate) / (24 * 60 * 60)
                     if daysSinceModification > 7 {
-                        try fileManager.removeItem(atPath: itemPath)
+                        moveToTrash(at: itemPath)
                     }
                 }
             }
@@ -150,10 +151,21 @@ class CleanupManager: ObservableObject {
     }
     
     private func deleteFile(at path: String) {
+        moveToTrash(at: path)
+    }
+    
+    private func moveToTrash(at path: String) {
+        let url = URL(fileURLWithPath: path)
         do {
-            try fileManager.removeItem(atPath: path)
+            try NSWorkspace.shared.recycle([url])
         } catch {
-            print("Failed to delete file at \(path): \(error)")
+            print("Failed to move \(path) to trash: \(error)")
+            // 휴지통으로 이동 실패 시 직접 삭제 시도
+            do {
+                try fileManager.removeItem(atPath: path)
+            } catch {
+                print("Failed to delete \(path): \(error)")
+            }
         }
     }
     

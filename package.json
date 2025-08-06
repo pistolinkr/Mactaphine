@@ -1,5 +1,5 @@
 {
-  "name": "mac-data-cleaner-pro",
+  "name": "mactaphine",
   "version": "1.0.0",
   "description": "Professional Mac Data Cleaner - Cross Platform Version",
   "main": "electron/main.js",
@@ -12,8 +12,8 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
-    "appId": "com.mactaphine.datacleaner",
-    "productName": "Mac 데이터 클리너 Pro",
+    "appId": "com.mactaphine.app",
+    "productName": "Mactaphine",
     "directories": {
       "output": "releases"
     },

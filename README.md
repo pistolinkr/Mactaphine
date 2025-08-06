@@ -1,4 +1,4 @@
-# Mac Data Cleaner Pro 🧹✨
+# Mactaphine 🧹✨
 
 **Professional Mac System Cleanup Tool - Commercial Grade Quality**
 
@@ -62,8 +62,8 @@
 
 ## 📊 Performance Comparison
 
-| Feature | Mac Data Cleaner Pro | CleanMyMac | CCleaner |
-|---------|---------------------|------------|----------|
+| Feature | Mactaphine | CleanMyMac | CCleaner |
+|---------|------------|------------|----------|
 | Free Usage | ✅ Completely Free | ❌ Paid ($89.95/year) | ⚠️ Limited Free |
 | Native Performance | ✅ Swift/Electron | ✅ Native | ⚠️ Qt-based |
 | Risk Assessment | ✅ 3-tier System | ✅ Supported | ⚠️ Basic |
@@ -77,7 +77,7 @@
 # Swift app build
 ./build_dmg.sh
 
-# Result: Mac 데이터 클리너.dmg
+# Result: Mactaphine.dmg
 ```
 
 ### Cross-platform Electron App

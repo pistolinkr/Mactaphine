@@ -176,7 +176,7 @@ struct ContentView: View {
                         .foregroundStyle(.linearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Mac 데이터 클리너 Pro")
+                        Text("Mactaphine")
                             .font(.title)
                             .fontWeight(.bold)
                         

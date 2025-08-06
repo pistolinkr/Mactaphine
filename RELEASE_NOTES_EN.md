@@ -1,4 +1,4 @@
-# Mac Data Cleaner Pro v1.0.0 🎉
+# Mactaphine v1.0.0 🎉
 
 **Release Date**: August 6, 2024
 
@@ -44,7 +44,7 @@
 ## 📦 Download Options
 
 ### macOS (Recommended)
-- **File**: `Mac 데이터 클리너.dmg` (228KB)
+- **File**: `Mactaphine.dmg` (228KB)
 - **Technology**: Native Swift app
 - **Support**: macOS 14.0+ (Apple Silicon + Intel)
 - **Performance**: Optimized native performance

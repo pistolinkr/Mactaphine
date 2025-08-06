@@ -1,0 +1,61 @@
+{
+  "name": "mac-data-cleaner-pro",
+  "version": "1.0.0",
+  "description": "Professional Mac Data Cleaner - Cross Platform Version",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build-mac": "electron-builder --mac",
+    "build-win": "electron-builder --win",
+    "build-all": "electron-builder --mac --win",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.mactaphine.datacleaner",
+    "productName": "Mac 데이터 클리너 Pro",
+    "directories": {
+      "output": "releases"
+    },
+    "files": [
+      "electron/**/*",
+      "web/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "author": "Mactaphine",
+  "license": "MIT"
+} 

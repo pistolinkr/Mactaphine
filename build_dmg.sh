@@ -23,10 +23,10 @@ echo "📱 앱 빌드 중..."
 # 모든 Swift 파일 수동 컴파일
 echo "🔧 Swift 파일 수동 컴파일..."
 SWIFT_FILES=(
-    "${APP_NAME}/${APP_NAME}/MacDataCleanerApp.swift"
-    "${APP_NAME}/${APP_NAME}/ContentView.swift"
     "${APP_NAME}/${APP_NAME}/DataScanner.swift"
     "${APP_NAME}/${APP_NAME}/CleanupManager.swift"
+    "${APP_NAME}/${APP_NAME}/ContentView.swift"
+    "${APP_NAME}/${APP_NAME}/MacDataCleanerApp.swift"
 )
 
 mkdir -p "$BUILD_DIR/manual"

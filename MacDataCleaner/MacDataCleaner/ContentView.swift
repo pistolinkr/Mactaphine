@@ -1,43 +1,87 @@
 import SwiftUI
+import Foundation
 
 struct ContentView: View {
     @StateObject private var dataScanner = DataScanner()
     @StateObject private var cleanupManager = CleanupManager()
     @State private var selectedCategory: CleanupCategory? = nil
     @State private var showingCleanupConfirmation = false
+    @State private var showingSettings = false
+    @State private var showingDetailView = false
+    @State private var showingReports = false
+    @State private var selectedItem: CleanupItem?
+    @State private var searchText = ""
+    @State private var sortOption = SortOption.size
+    @State private var showOnlySafe = false
     
-    var selectedItems: [CleanupItem] {
-        dataScanner.cleanupItems.filter { $0.isSelected }
+    enum SortOption: String, CaseIterable {
+        case size = "크기"
+        case name = "이름"
+        case date = "날짜"
+        case category = "카테고리"
     }
     
-    var selectedSize: Int64 {
-        selectedItems.reduce(0) { $0 + $1.size }
+    var filteredItems: [CleanupItem] {
+        var items = dataScanner.cleanupItems
+        
+        // Apply search filter
+        if !searchText.isEmpty {
+            items = items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        
+        // Apply category filter
+        if let category = selectedCategory {
+            items = items.filter { $0.category == category }
+        }
+        
+        // Apply safety filter
+        if showOnlySafe {
+            items = items.filter { $0.riskLevel == .safe }
+        }
+        
+        // Apply sorting
+        switch sortOption {
+        case .size:
+            items.sort { $0.size > $1.size }
+        case .name:
+            items.sort { $0.name < $1.name }
+        case .date:
+            items.sort { $0.lastModified > $1.lastModified }
+        case .category:
+            items.sort { $0.category.rawValue < $1.category.rawValue }
+        }
+        
+        return items
+    }
+    
+    var selectedItems: [CleanupItem] {
+        filteredItems.filter { $0.isSelected }
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // 헤더
+            // Header
             headerView
             
             Divider()
             
-            // 메인 컨텐츠
+            // Main Content
             HStack(spacing: 0) {
-                // 사이드바
+                // Sidebar
                 sidebarView
                 
                 Divider()
                 
-                // 메인 뷰
+                // Main View
                 mainContentView
             }
             
             Divider()
             
-            // 하단 액션 바
+            // Bottom Action Bar
             bottomActionView
         }
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(minWidth: 1000, minHeight: 700)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             dataScanner.scanForCleanupItems()
@@ -47,51 +91,167 @@ struct ContentView: View {
         }
     }
     
-    private var headerView: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "internaldrive")
-                    .font(.title2)
-                    .foregroundColor(.blue)
+    private var enhancedBottomActionView: some View {
+        HStack(spacing: 16) {
+            // Selection info
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.accentColor)
                 
-                Text("Mac 데이터 클리너")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                if dataScanner.isScanning {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("스캔 중...")
+                if selectedItems.isEmpty {
+                    Text("선택된 항목 없음")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(selectedItems.count)개 항목 선택됨")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Text(dataScanner.formatBytes(dataScanner.selectedSize))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                } else {
-                    Button("다시 스캔") {
-                        dataScanner.scanForCleanupItems()
-                    }
-                    .buttonStyle(.borderedProminent)
                 }
             }
             
-            if !dataScanner.isScanning && dataScanner.totalSize > 0 {
-                HStack {
-                    Text("총 정리 가능한 데이터:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+            Spacer()
+            
+            // Quick stats
+            if !dataScanner.isScanning && !dataScanner.cleanupItems.isEmpty {
+                HStack(spacing: 16) {
+                    VStack(alignment: .center, spacing: 2) {
+                        Text("\(dataScanner.cleanupItems.count)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("총 항목")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text(dataScanner.formatBytes(dataScanner.totalSize))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
+                    VStack(alignment: .center, spacing: 2) {
+                        Text(dataScanner.formatBytes(dataScanner.totalSize))
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                        Text("절약 가능")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Action buttons
+            HStack(spacing: 12) {
+                if !selectedItems.isEmpty {
+                    Button("선택 해제") {
+                        for category in CleanupCategory.allCases {
+                            dataScanner.deselectAll(in: category)
+                        }
+                    }
+                    .buttonStyle(.bordered)
                     
-                    Spacer()
+                    Button("정리 시작") {
+                        showingCleanupConfirmation = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .foregroundColor(.white)
+                    .tint(.red)
+                    .disabled(selectedItems.isEmpty)
                 }
             }
         }
         .padding()
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.7))
+    }
+    
+    private var headerView: some View {
+        VStack(spacing: 12) {
+            HStack {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .font(.title)
+                        .foregroundStyle(.linearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mac 데이터 클리너 Pro")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        
+                        if !dataScanner.isScanning && !dataScanner.cleanupItems.isEmpty {
+                            Text("\(dataScanner.cleanupItems.count)개 항목 • \(dataScanner.formatBytes(dataScanner.totalSize))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 12) {
+                    if dataScanner.isScanning {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("스캔 중...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else {
+                        Button("새로고침") {
+                            dataScanner.scanForCleanupItems()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    }
+                }
+            }
+            
+            // Search and filter row
+            if !dataScanner.cleanupItems.isEmpty {
+                HStack(spacing: 12) {
+                    // Search field
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        
+                        TextField("파일 검색...", text: $dataScanner.searchText)
+                            .textFieldStyle(.plain)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(8)
+                    .frame(maxWidth: 300)
+                    
+                    Toggle("안전한 항목만", isOn: $dataScanner.showOnlySafe)
+                        .toggleStyle(.checkbox)
+                    
+                    Spacer()
+                    
+                    // Quick action buttons
+                    HStack(spacing: 8) {
+                        Button("안전한 항목 선택") {
+                            dataScanner.selectAllSafe()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        
+                        Button("모두 해제") {
+                            for category in CleanupCategory.allCases {
+                                dataScanner.deselectAll(in: category)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
     
     private var sidebarView: some View {
@@ -199,8 +359,8 @@ struct ContentView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                     
-                    if selectedSize > 0 {
-                        Text("정리 예정 크기: \(dataScanner.formatBytes(selectedSize))")
+                    if dataScanner.selectedSize > 0 {
+                        Text("정리 예정 크기: \(dataScanner.formatBytes(dataScanner.selectedSize))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -243,7 +403,7 @@ struct ContentView: View {
             Text("선택된 \(selectedItems.count)개 항목을 정리하시겠습니까?")
                 .font(.subheadline)
             
-            Text("총 \(dataScanner.formatBytes(selectedSize))의 데이터가 삭제됩니다.")
+            Text("총 \(dataScanner.formatBytes(dataScanner.selectedSize))의 데이터가 삭제됩니다.")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(.red)

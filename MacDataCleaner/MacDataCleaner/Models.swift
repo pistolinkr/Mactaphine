@@ -15,7 +15,7 @@ struct CleanupItem: Identifiable, Hashable {
     var isSelected: Bool = false
     var description: String = ""
     
-    enum RiskLevel: String, CaseIterable {
+    enum RiskLevel: String, CaseIterable, Codable {
         case safe = "안전"
         case medium = "주의"
         case high = "위험"

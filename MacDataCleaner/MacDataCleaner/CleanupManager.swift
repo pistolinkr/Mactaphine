@@ -66,6 +66,12 @@ class CleanupManager: ObservableObject {
             cleanBrowserData(at: item.path)
         case .temp:
             cleanDirectory(at: item.path, preserveStructure: false)
+        case .largeFiles:
+            // 대용량 파일은 개별 삭제
+            deleteFile(at: item.path)
+        case .duplicates:
+            // 중복 파일 삭제
+            deleteFile(at: item.path)
         }
     }
     
@@ -140,6 +146,14 @@ class CleanupManager: ObservableObject {
             if fileManager.fileExists(atPath: cachePath) {
                 cleanDirectory(at: cachePath, preserveStructure: false)
             }
+        }
+    }
+    
+    private func deleteFile(at path: String) {
+        do {
+            try fileManager.removeItem(atPath: path)
+        } catch {
+            print("Failed to delete file at \(path): \(error)")
         }
     }
     
